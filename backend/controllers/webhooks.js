@@ -18,7 +18,7 @@ export const clerkWebhooks = async (req, res) => {
         case 'user.created': {
           const userData = {
             _id: data.id,
-            email: data.email_address[0].email_address,
+            email: data.email_addresses[0].email_address,
             name: data.first_name + ' ' + data.last_name,
             imageUrl: data.imageUrl
           };
@@ -49,6 +49,6 @@ export const clerkWebhooks = async (req, res) => {
 
   } catch (error) {
     // Xử lý lỗi tại đây (hiện tại đoạn code chưa hoàn thiện phần catch)
-    res.jsos({success:false, message: error.message})
+    res.json({success:false, message: error.message})
   }
 };
