@@ -13,12 +13,16 @@ import MyCourses from "./pages/educator/MyCourses";
 import AddCourse from "./pages/educator/AddCourse";
 import Navbar from "./components/student/Navbar";
 import { useMatch } from "react-router-dom";
-import "quill/dist/quill.snow.css"
+import "quill/dist/quill.snow.css";
+import { ToastContainer, toast} from 'react-toastify'
+
+
 const App = () => {
   const isEducatorRoute = useMatch("/educator/*");
 
   return (
     <div className="text-default min-h-screen bg-white">
+      <ToastContainer/>
       {!isEducatorRoute && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />

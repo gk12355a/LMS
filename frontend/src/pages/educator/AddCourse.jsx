@@ -1,9 +1,12 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useContext } from "react";
 import uniqid from "uniqid";
 import Quill from "quill";
 import { assets } from "../../assets/assets";
-
+import { AppContext } from "../../context/AppContext";
+import { toast } from "react-toastify";
+import axios from "axios";
 const AddCourse = () => {
+  const { backendUrl, getToken } = useContext(AppContext);
   const quillRef = useRef(null);
   const editorRef = useRef(null);
   const [courseTitle, setCourseTitle] = useState("");
@@ -12,7 +15,7 @@ const AddCourse = () => {
   const [image, setImage] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
-  const [currentChaperId, setCurrentChapterId] = useState(null);
+  const [currentChapterId, setCurrentChapterId] = useState(null);
   const [lectureDetails, setLectureDetails] = useState({
     lectureTitle: "",
     lectureDuration: "",
@@ -35,7 +38,9 @@ const AddCourse = () => {
         setChapters([...chapters, newChapter]);
       }
     } else if (action === "remove") {
-      setChapters(chapters.filter((chapter) => chapter.chapterId !== chapterId));
+      setChapters(
+        chapters.filter((chapter) => chapter.chapterId !== chapterId)
+      );
     } else if (action === "toggle") {
       setChapters(
         chapters.map((chapter) =>
@@ -48,17 +53,24 @@ const AddCourse = () => {
   };
 
   const addLecture = () => {
-    if (!lectureDetails.lectureTitle || !lectureDetails.lectureDuration || !lectureDetails.lectureUrl) {
-      alert("Please fill all fields");
-      return;
-    }
+    // if (
+    //   !lectureDetails.lectureTitle ||
+    //   !lectureDetails.lectureDuration ||
+    //   !lectureDetails.lectureUrl
+    // ) {
+    //   alert("Please fill all fields");
+    //   return;
+    // }
     setChapters(
       chapters.map((chapter) => {
-        if (chapter.chapterId === currentChaperId) {
-          return {
-            ...chapter,
-            chapterContent: [...chapter.chapterContent, lectureDetails],
+        if (chapter.chapterId === currentChapterId) {
+          const newLecture = {
+            ...lectureDetails,
+            lectureOrder: chapter.chapterContent.length > 0 ? chapter.chapterContent.slice(-1)[0].lectureOrder + 1 : 1,
+            lectureId: uniqid(),
           };
+          chapter.chapterContent.push(newLecture);
+          return chapter;
         }
         return chapter;
       })
@@ -89,18 +101,42 @@ const AddCourse = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const courseDescription = quillRef.current.root.innerHTML;
-    const formData = {
-      courseTitle,
-      courseDescription,
-      coursePrice,
-      discount,
-      image,
-      chapters,
-    };
-    console.log("Course Submitted:", formData);
-    alert("Course Submitted!");
+    try {
+      e.preventDefault();
+      if (!image) {
+        toast.error("Thumbnail Not Selected");
+      }
+
+      const courseData = {
+        courseTitle,
+        courseDescription: quillRef.current.root.innerHTML,
+        coursePrice: Number(coursePrice),
+        discount: Number(discount),
+        courseContent: chapters,
+      };
+      const formData = new FormData();
+      formData.append("courseData", JSON.stringify(courseData));
+      formData.append("image", image);
+
+      const token = await getToken();
+      const { data } = await axios.post(
+        backendUrl + "/api/educator/add-course",
+        formData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (data.success) {
+        toast.success(data.message);
+        setCourseTitle("");
+        setCoursePrice(0);
+        setDiscount(0);
+        setImage(null);
+        setChapters([]);
+        quillRef.current.root.innerHTML = "";
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {}
   };
 
   useEffect(() => {
@@ -113,7 +149,10 @@ const AddCourse = () => {
 
   return (
     <div className="h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md w-full text-gray-500">
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4 max-w-md w-full text-gray-500"
+      >
         <div className="flex flex-col gap-1">
           <p>Course Title</p>
           <input
@@ -187,11 +226,17 @@ const AddCourse = () => {
                     src={assets.dropdown_icon}
                     width={14}
                     alt=""
-                    className={`mr-2 cursor-pointer transition-all ${chapter.collapsed && "-rotate-90"}`}
+                    className={`mr-2 cursor-pointer transition-all ${
+                      chapter.collapsed && "-rotate-90"
+                    }`}
                   />
-                  <span className="font-semibold">{chapterIndex + 1} {chapter.chapterTitle}</span>
+                  <span className="font-semibold">
+                    {chapterIndex + 1} {chapter.chapterTitle}
+                  </span>
                 </div>
-                <span className="text-gray-500">{chapter.chapterContent.length} Lectures</span>
+                <span className="text-gray-500">
+                  {chapter.chapterContent.length} Lectures
+                </span>
                 <img
                   onClick={() => handleChapter("remove", chapter.chapterId)}
                   src={assets.cross_icon}
@@ -202,12 +247,32 @@ const AddCourse = () => {
               {!chapter.collapsed && (
                 <div className="p-4">
                   {chapter.chapterContent.map((lecture, lectureIndex) => (
-                    <div key={lectureIndex} className="flex justify-between items-center mb-2">
-                      <span>{lectureIndex + 1} {lecture.lectureTitle} - {lecture.lectureDuration} mins <a href={lecture.lectureUrl} target="_blank" className="text-blue-500">Link</a> - {lecture.isPreviewFree ? "Free Preview" : "Paid"}</span>
+                    <div
+                      key={lectureIndex}
+                      className="flex justify-between items-center mb-2"
+                    >
+                      <span>
+                        {lectureIndex + 1} {lecture.lectureTitle} -{" "}
+                        {lecture.lectureDuration} mins{" "}
+                        <a
+                          href={lecture.lectureUrl}
+                          target="_blank"
+                          className="text-blue-500"
+                        >
+                          Link
+                        </a>{" "}
+                        - {lecture.isPreviewFree ? "Free Preview" : "Paid"}
+                      </span>
                       <img
                         src={assets.cross_icon}
                         alt=""
-                        onClick={() => handleLecture("remove", chapter.chapterId, lectureIndex)}
+                        onClick={() =>
+                          handleLecture(
+                            "remove",
+                            chapter.chapterId,
+                            lectureIndex
+                          )
+                        }
                         className="cursor-pointer"
                       />
                     </div>
@@ -230,7 +295,10 @@ const AddCourse = () => {
           </div>
         </div>
 
-        <button type="submit" className="bg-black text-white w-max py-2.5 px-8 rounded self-center mt-4">
+        <button
+          type="submit"
+          className="bg-black text-white w-max py-2.5 px-8 rounded self-center mt-4"
+        >
           Submit
         </button>
       </form>
@@ -246,7 +314,10 @@ const AddCourse = () => {
                 className="mt-1 block w-full border rounded py-1 px-2"
                 value={lectureDetails.lectureTitle}
                 onChange={(e) =>
-                  setLectureDetails({ ...lectureDetails, lectureTitle: e.target.value })
+                  setLectureDetails({
+                    ...lectureDetails,
+                    lectureTitle: e.target.value,
+                  })
                 }
               />
             </div>
@@ -257,7 +328,10 @@ const AddCourse = () => {
                 className="mt-1 block w-full border rounded py-1 px-2"
                 value={lectureDetails.lectureDuration}
                 onChange={(e) =>
-                  setLectureDetails({ ...lectureDetails, lectureDuration: e.target.value })
+                  setLectureDetails({
+                    ...lectureDetails,
+                    lectureDuration: e.target.value,
+                  })
                 }
               />
             </div>
@@ -268,7 +342,10 @@ const AddCourse = () => {
                 className="mt-1 block w-full border rounded py-1 px-2"
                 value={lectureDetails.lectureUrl}
                 onChange={(e) =>
-                  setLectureDetails({ ...lectureDetails, lectureUrl: e.target.value })
+                  setLectureDetails({
+                    ...lectureDetails,
+                    lectureUrl: e.target.value,
+                  })
                 }
               />
             </div>
@@ -279,7 +356,10 @@ const AddCourse = () => {
                 className="mt-1 scale-125"
                 checked={lectureDetails.isPreviewFree}
                 onChange={(e) =>
-                  setLectureDetails({ ...lectureDetails, isPreviewFree: e.target.checked })
+                  setLectureDetails({
+                    ...lectureDetails,
+                    isPreviewFree: e.target.checked,
+                  })
                 }
               />
             </div>

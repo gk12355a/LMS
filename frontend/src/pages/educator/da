@@ -1,0 +1,48 @@
+import React, { useContext, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { AppContext } from "../../context/AppContext";
+import Loading from "../../components/student/Loading";
+import { assets } from "../../assets/assets";
+import humanizeDuration from "humanize-duration";
+import Footer from "../../components/student/Footer";
+import YouTube from "react-youtube";
+const CourseDetails = () => {
+  const { id } = useParams();
+  const [courseData, setCourseData] = useState(null);
+  const [openSections, setOpenSections] = useState({});
+  const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
+  const [playerData, setPlayerData] = useState(null);
+  const {
+    allCourses,
+    calculateRating,
+    calculateNoOfLectures,
+    calculateCourseDuration,
+    calculateChapterTime,
+    currency,
+    backendUrl,
+    userData
+  } = useContext(AppContext);
+
+  const fetchCourseData = async () => {
+    try {
+      const { data } = await axios.get(backendUrl + '/api/course/' + id);
+      if (data.success) {
+        setCourseData(data.courseData);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const enrollCourse = async () => {
+    try {
+     
+    } catch (error) {
+      
+    }
+  };
+  useEffect(() => {
+    fetchCourseData();
+  }, []);

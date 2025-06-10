@@ -3,31 +3,72 @@ import { AppContext } from "../../context/AppContext";
 import { useState } from "react";
 import { Line } from "rc-progress";
 import Footer from "../../components/student/Footer";
+import { useEffect } from "react";
+import axios from "axios";
 const MyEnrollments = () => {
-  const { enrolledCourses, calculateCourseDuration, navigate } =
-    useContext(AppContext);
-  const [progressArray, setProgressArray] = useState([
-    { lectureCompleted: 2, totalLectures: 4 },
-    { lectureCompleted: 1, totalLectures: 5 },
-    { lectureCompleted: 3, totalLectures: 6 },
-    { lectureCompleted: 4, totalLectures: 4 },
-    { lectureCompleted: 0, totalLectures: 3 },
-    { lectureCompleted: 5, totalLectures: 7 },
-    { lectureCompleted: 6, totalLectures: 8 },
-    { lectureCompleted: 2, totalLectures: 6 },
-    { lectureCompleted: 4, totalLectures: 10 },
-    { lectureCompleted: 3, totalLectures: 5 },
-    { lectureCompleted: 7, totalLectures: 7 },
-    { lectureCompleted: 1, totalLectures: 4 },
-    { lectureCompleted: 0, totalLectures: 2 },
-    { lectureCompleted: 5, totalLectures: 5 },
-  ]);
+  const {
+    enrolledCourses,
+    calculateCourseDuration,
+    navigate,
+    userData,
+    fetchUserEnrolledCourses,
+    backendUrl,
+    fetchAllCourses,
+    calculateNoOfLectures,
+    calculateChapterTime,
+    setUserData,
+    getToken,
+  } = useContext(AppContext);
+  const [progressArray, setProgressArray] = useState([]);
+
+  const getCourseProgress = async () => {
+    try {
+      const token = await getToken();
+      console.log("📥 Fetching progress for courses: ", enrolledCourses);
+      const tempProgressArray = await Promise.all(
+        enrolledCourses.map(async (course) => {
+          const { data } = await axios.post(
+            `${backendUrl}/api/user/get-course-progress`,
+            { courseId: course._id },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          let totalLectures = calculateNoOfLectures(course);
+          const lectureCompleted = data.progressData
+            ? data.progressData.lectureCompleted.length
+            : 0;
+          return { totalLectures, lectureCompleted };
+        })
+      );
+      console.log("✅ Final Progress Array: ", tempProgressArray);
+      setProgressArray(tempProgressArray);
+    } catch (error) {
+      console.error("❌ Error fetching course progress:", error);
+
+      toast.error(error.message);
+    }
+  };
+  useEffect(() => {
+    if (userData) {
+      fetchUserEnrolledCourses();
+    }
+  }, [userData]);
+
+  useEffect(() => {
+    console.log("🎓 Enrolled Courses: ", enrolledCourses);
+    if (enrolledCourses.length > 0) {
+      getCourseProgress();
+    }
+  }, [enrolledCourses]);
+  useEffect(() => {
+    console.log("📊 Progress loaded: ", progressArray);
+  }, [progressArray]);
+
   return (
     <>
       <div className="md:px-36 px-8 pt-10">
         <h1 className="text-2xl font-semibold">My Enrollments</h1>
         <table className="md:table-auto table-fixed w-full overflow-hidden border mt-10">
-          <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden">
+          <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left">
             <tr>
               <th className="px-4 py-3 font-semibold truncate">Course</th>
               <th className="px-4 py-3 font-semibold truncate">Duration</th>
@@ -52,7 +93,7 @@ const MyEnrollments = () => {
                         progressArray[index]
                           ? (progressArray[index].lectureCompleted * 100) /
                             progressArray[index].totalLectures
-                          : 0   
+                          : 0
                       }
                       className="bg-gray-300 rounded-full"
                     />
@@ -61,11 +102,22 @@ const MyEnrollments = () => {
                 <td className="px-4 py-3 max-sm:hidden">
                   {calculateCourseDuration(course)}
                 </td>
-                <td className="px-4 py-3 max-sm:hidden">
+                {/* <td className="px-4 py-3 max-sm:hidden">
                   {progressArray[index] &&
                     `${progressArray[index].lectureCompleted} / ${progressArray[index].totalLectures}`}{" "}
                   <span>Lectures</span>
+                </td> */}
+                <td className="px-4 py-3 max-sm:hidden">
+                  {progressArray[index] ? (
+                    <>
+                      {progressArray[index].lectureCompleted} /{" "}
+                      {progressArray[index].totalLectures} Lectures
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Loading...</span>
+                  )}
                 </td>
+
                 <td className="px-4 py-3 max-sm:text-right">
                   <button
                     onClick={() => navigate("/player/" + course._id)}
@@ -84,7 +136,7 @@ const MyEnrollments = () => {
           </tbody>
         </table>
       </div>
-      <Footer/>
+      <Footer />
     </>
   );
 };
