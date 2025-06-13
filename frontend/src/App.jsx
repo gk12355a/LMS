@@ -14,15 +14,15 @@ import AddCourse from "./pages/educator/AddCourse";
 import Navbar from "./components/student/Navbar";
 import { useMatch } from "react-router-dom";
 import "quill/dist/quill.snow.css";
-import { ToastContainer, toast} from 'react-toastify'
-
+import { ToastContainer, toast } from "react-toastify";
+import About from "./pages/student/About";
 
 const App = () => {
   const isEducatorRoute = useMatch("/educator/*");
-// bg-whiteC
+  // bg-whiteC
   return (
     <div className="text-default min-h-screen  bg-gradient-to-b from-stone-200/70">
-      <ToastContainer/>
+      <ToastContainer />
       {!isEducatorRoute && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />
@@ -32,6 +32,7 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
+        <Route path="/about" element={<About />} />
         <Route path="/educator" element={<Educator />}>
           <Route path="/educator" element={<Dashboard />} />
           <Route path="my-courses" element={<MyCourses />} />
@@ -40,7 +41,6 @@ const App = () => {
         </Route>
       </Routes>
     </div>
-
   );
 };
 
