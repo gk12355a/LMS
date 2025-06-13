@@ -188,7 +188,7 @@ const CourseDetails = () => {
                                   }
                                   className="text-blue-600 cursor-pointer"
                                 >
-                                  Preview
+                                  Free
                                 </p>
                               )}
                               <p>
