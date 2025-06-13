@@ -117,13 +117,13 @@ const fetchUserEnrolledCourses = async () => {
     fetchUserEnrolledCourses();
   }, []);
 
-  const logToken = async () => {
-    console.log(await getToken());
-  };
+  // const logToken = async () => {
+  //   console.log(await getToken());
+  // };
 
   useEffect(() => {
     if (user) {
-      logToken();
+      // logToken();
       fetchUserData();
       fetchUserEnrolledCourses();
     }
