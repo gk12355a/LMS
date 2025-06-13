@@ -23,12 +23,14 @@ export const AppContextProvider = (props) => {
   const fetchAllCourses = async () => {
     try {
       const { data } = await axios.get(backendUrl + "/api/course/all");
+      console.log("Fetched courses:", data);
       if (data.success) {
         setAllCourses(data.courses);
       } else {
         toast.error(data.message);
       }
     } catch (error) {
+      console.error("Error fetching courses:", error);
       toast.error(data.message);
     }
     // setAllCourses(dummyCourses);
@@ -103,10 +105,10 @@ const fetchUserEnrolledCourses = async () => {
     if (data.success) {
       setEnrolledCourses(data.enrolledCourses.reverse());
     } else {
-      toast.error(data.message);
+      // toast.error(data.message);
     }
   } catch (error) {
-    toast.error(error.message);
+    // toast.error(error.message);
   }
 };
 
@@ -115,13 +117,13 @@ const fetchUserEnrolledCourses = async () => {
     fetchUserEnrolledCourses();
   }, []);
 
-  // const logToken = async () => {
-  //   console.log(await getToken());
-  // };
+  const logToken = async () => {
+    console.log(await getToken());
+  };
 
   useEffect(() => {
     if (user) {
-      // logToken();
+      logToken();
       fetchUserData();
       fetchUserEnrolledCourses();
     }

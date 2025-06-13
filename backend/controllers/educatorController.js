@@ -117,7 +117,7 @@ export const getEnrolledStudentsData = async (req, res) => {
     const purchases = await Purchase.find({
       courseId: { $in: courseIds },
       status: "completed",
-    }).populate("userId", "name imageUrl").populate("courseId", "courseTitle");
+    }).populate("userId", "name email imageUrl").populate("courseId", "courseTitle");
     const enrolledStudents = purchases.map((purchase) => ({
       student: purchase.userId,
       courseTitle: purchase.courseId.courseTitle,
@@ -125,6 +125,55 @@ export const getEnrolledStudentsData = async (req, res) => {
     }));
 
     res.json({ success: true, enrolledStudents });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
+// Update existing course
+export const updateCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { courseTitle, coursePrice, discount, courseDescription, courseContent } = req.body;
+    const imageFile = req.file;
+    const educatorId = req.auth.userId;
+
+    const course = await Course.findById(id);
+    if (!course) {
+      return res.json({ success: false, message: "Course not found" });
+    }
+    if (course.educator.toString() !== educatorId) {
+      return res.json({ success: false, message: "Unauthorized to update this course" });
+    }
+
+    // Update basic fields
+    if (courseTitle) course.courseTitle = courseTitle;
+    if (coursePrice) course.coursePrice = coursePrice;
+    if (discount) course.discount = discount;
+    if (courseDescription) course.courseDescription = courseDescription;
+
+    // Update or add course content (chapters and lectures)
+    if (courseContent) {
+      course.courseContent = courseContent.map(chapter => ({
+        ...chapter,
+        chapterContent: chapter.chapterContent.map(lecture => ({
+          ...lecture,
+          lectureId: lecture.lectureId || `lec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          chapterId: chapter.chapterId || `chap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }))
+      }));
+    }
+
+    // Update thumbnail if new image is provided
+    if (imageFile) {
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+      course.courseThumbnail = imageUpload.secure_url;
+    }
+
+    await course.save();
+
+    res.json({ success: true, message: "Course updated successfully", course });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

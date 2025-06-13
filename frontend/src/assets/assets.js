@@ -42,13 +42,15 @@ import profile_img from './profile_img.png'
 import profile_img2 from './profile_img2.png'
 import profile_img3 from './profile_img3.png'
 import lesson_icon from './lesson_icon.svg'
-
-
+import cmc_icon from './cmc.png'
+import devops from './devops.svg'
 export const assets = {
+    devops,
     logo,
     search_icon,
     sketch,
     microsoft_logo,
+    cmc_icon,
     walmart_logo,
     accenture_logo,
     adobe_logo,

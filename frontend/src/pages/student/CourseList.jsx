@@ -6,6 +6,7 @@ import CourseCard from "../../components/student/CourseCard";
 import { useContext } from "react"
 import { useState,useEffect } from "react"
 import Footer from "../../components/student/Footer";
+import { assets } from "../../assets/assets";
 
 const CourseList = () => {
   const { navigate,allCourses } = useContext(AppContext);
@@ -48,7 +49,6 @@ const CourseList = () => {
         <p>{input}</p>
         <img src={assets.cross_icon} alt="" className="cursor-pointer" onClick={() => navigate('/course-list')}/>
       </div>
-
       }
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCourses.map((course, index) => <CourseCard key={index} course={course}/>)}

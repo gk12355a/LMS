@@ -66,7 +66,10 @@ const AddCourse = () => {
         if (chapter.chapterId === currentChapterId) {
           const newLecture = {
             ...lectureDetails,
-            lectureOrder: chapter.chapterContent.length > 0 ? chapter.chapterContent.slice(-1)[0].lectureOrder + 1 : 1,
+            lectureOrder:
+              chapter.chapterContent.length > 0
+                ? chapter.chapterContent.slice(-1)[0].lectureOrder + 1
+                : 1,
             lectureId: uniqid(),
           };
           chapter.chapterContent.push(newLecture);
@@ -200,6 +203,13 @@ const AddCourse = () => {
                 src={image ? URL.createObjectURL(image) : ""}
                 alt=""
               />
+              {/* {image && (
+                <img
+                  className="max-h-10"
+                  src={URL.createObjectURL(image)}
+                  alt="Course Thumbnail"
+                />
+              )} */}
             </label>
           </div>
         </div>

@@ -1,48 +1,71 @@
-import React, { useContext, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { AppContext } from "../../context/AppContext";
-import Loading from "../../components/student/Loading";
-import { assets } from "../../assets/assets";
-import humanizeDuration from "humanize-duration";
-import Footer from "../../components/student/Footer";
-import YouTube from "react-youtube";
-const CourseDetails = () => {
-  const { id } = useParams();
-  const [courseData, setCourseData] = useState(null);
-  const [openSections, setOpenSections] = useState({});
-  const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
-  const [playerData, setPlayerData] = useState(null);
-  const {
-    allCourses,
-    calculateRating,
-    calculateNoOfLectures,
-    calculateCourseDuration,
-    calculateChapterTime,
-    currency,
-    backendUrl,
-    userData
-  } = useContext(AppContext);
+// import React, { useContext, useEffect, useState } from "react";
+// import { useParams } from "react-router-dom";
+// import { AppContext } from "../../context/AppContext";
+// import Loading from "../../components/student/Loading";
+// import { assets } from "../../assets/assets";
+// import humanizeDuration from "humanize-duration";
+// import Footer from "../../components/student/Footer";
+// import YouTube from "react-youtube";
+// const CourseDetails = () => {
+//   const { id } = useParams();
+//   const [courseData, setCourseData] = useState(null);
+//   const [openSections, setOpenSections] = useState({});
+//   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
+//   const [playerData, setPlayerData] = useState(null);
+//   const {
+//     allCourses,
+//     calculateRating,
+//     calculateNoOfLectures,
+//     calculateCourseDuration,
+//     calculateChapterTime,
+//     currency,
+//     backendUrl,
+//     userData
+//   } = useContext(AppContext);
 
-  const fetchCourseData = async () => {
-    try {
-      const { data } = await axios.get(backendUrl + '/api/course/' + id);
-      if (data.success) {
-        setCourseData(data.courseData);
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+//   const fetchCourseData = async () => {
+//     try {
+//       const { data } = await axios.get(backendUrl + '/api/course/' + id);
+//       if (data.success) {
+//         setCourseData(data.courseData);
+//       } else {
+//         toast.error(data.message);
+//       }
+//     } catch (error) {
+//       toast.error(error.message);
+//     }
+//   };
 
-  const enrollCourse = async () => {
-    try {
+//   const enrollCourse = async () => {
+//     try {
      
-    } catch (error) {
+//     } catch (error) {
       
-    }
-  };
-  useEffect(() => {
-    fetchCourseData();
-  }, []);
+//     }
+//   };
+//   useEffect(() => {
+//     fetchCourseData();
+//   }, []);
+
+
+
+
+
+
+
+//   client:789 [vite] connecting...
+// react-dom_client.js?v=9dcd86d3:17987 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+// uniqid.js?v=9dcd86d3:12 Module "os" has been externalized for browser compatibility. Cannot access "os.networkInterfaces" in client code. See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+// get @ uniqid.js?v=9dcd86d3:12
+// AppContext.jsx:26 Fetched courses: Object
+// clerk.browser.js:16 Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+// warnOnce @ clerk.browser.js:16
+// client:912 [vite] connected.
+// AppContext.jsx:121 eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDExMUFBQSIsImtpZCI6Imluc18yeHI1eVR5SmNja3QyYWM4WnRKTFMxeFJFWmQiLCJ0eXAiOiJKV1QifQ.eyJhenAiOiJodHRwOi8vbG9jYWxob3N0OjUxNzMiLCJleHAiOjE3NDk2MjIxNzYsImZ2YSI6WzQ4LC0xXSwiaWF0IjoxNzQ5NjIyMTE2LCJpc3MiOiJodHRwczovL2NyaXNwLXNoZXBoZXJkLTE0LmNsZXJrLmFjY291bnRzLmRldiIsIm5iZiI6MTc0OTYyMjEwNiwic2lkIjoic2Vzc18yeUxnT1hpWUtGWGUzV0hXZ01xcjFIbW9QNVMiLCJzdWIiOiJ1c2VyXzJ5RnF5dzQzY2t0OEtXWHZ1bHM0YllUTGo0RyIsInYiOjJ9.K5OPFs0cpAFC0sbEWsotwd8zSSc_b-gbMSlmjyQDHyaAyTtJdelGSFBFQtan60WSdiunNa5xiAe7NVqUM20KNALUID706gHAKlJfveRGvZ58Jl6irn9SZjUhAJ4x9hIzzchquOsAnmaKQ91EEm1U2kuTw-HqbXe_T3hBPnyx63EmQjn72StNG6NLjLb6ClPz7wVX3t3I3kYUnDXSwzaQ1iMVqr2g2mrbE_4gdYDu35FzNxF_XmYQBt-kBJZO4EJwUAnmW8WDypKlVN6g4Z-7-d74jkHDDffGV5cKwUteYH85DvPHR3QbzF0nb7_ZYMmyaFielXIRhTOor6IzpIAFCg
+// MyEnrollments.jsx:57 🎓 Enrolled Courses:  Array(0)length: 0[[Prototype]]: Array(0)
+// MyEnrollments.jsx:63 📊 Progress loaded:  Array(0)
+// MyEnrollments.jsx:57 🎓 Enrolled Courses:  Array(0)
+// react-dom_client.js?v=9dcd86d3:12318 An empty string ("") was passed to the src attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to src instead of an empty string.
+// setProp @ react-dom_client.js?v=9dcd86d3:12318
+// client:883 [vite] hot updated: /src/pages/educator/MyCourses.jsx
+// client:883 [vite] hot updated: /src/index.css

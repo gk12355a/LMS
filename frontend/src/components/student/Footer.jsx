@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { assets } from "../../assets/assets";
 
 const Footer = () => {
@@ -6,9 +6,9 @@ const Footer = () => {
     <footer className="bg-gray-900 md:px-36 text-left w-full mt-10">
       <div className="flex flex-col md:flex-row items-start px-8 md:px-0 justify-center gap-10 md:gap-32 py-10 border-b border-white">
         <div className="flex flex-col md:item-start items-center w-full">
-          <img src={assets.logo_dark} alt="logo" />
+          <img onClick={() => navigate('/')}className="w-12 lg:w-16 cursor-pointer" src={assets.logo} alt="logo" />
           <p className="mt-6 text-center md:text-left text-sm text-white">
-            Lorem
+            A ranwebsite on internet lol 
           </p>
         </div>
         <div className="flex flex-col md:items-start items-center w-full">

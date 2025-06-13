@@ -98,7 +98,7 @@ const Player = () => {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message); 
     }
   };
   const toggleSection = (index) => {
@@ -217,7 +217,7 @@ const Player = () => {
                 </p>
                 <button
                   onClick={() => markLectureAsCompleted(playerData.lectureId)}
-                  className="text-blue-600"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                 >
                   {progressData &&
                   progressData.lectureCompleted.includes(playerData.lectureId)

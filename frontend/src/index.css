@@ -83,3 +83,10 @@
 .rich-text li {
   margin-bottom: 8px;
 }
+.ScrollbarsCustom-ThumbY {
+  background: #2563eb; /* Màu xanh dương */
+  border-radius: 8px;
+}
+.ScrollbarsCustom-TrackY {
+  background: #e0e7ef;
+}

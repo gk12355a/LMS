@@ -19,9 +19,9 @@ import { ToastContainer, toast} from 'react-toastify'
 
 const App = () => {
   const isEducatorRoute = useMatch("/educator/*");
-
+// bg-whiteC
   return (
-    <div className="text-default min-h-screen bg-white">
+    <div className="text-default min-h-screen  bg-gradient-to-b from-stone-200/70">
       <ToastContainer/>
       {!isEducatorRoute && <Navbar />}
       <Routes>
@@ -40,6 +40,7 @@ const App = () => {
         </Route>
       </Routes>
     </div>
+
   );
 };
 
