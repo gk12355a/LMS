@@ -7,8 +7,8 @@ import humanizeDuration from "humanize-duration";
 import Footer from "../../components/student/Footer";
 import YouTube from "react-youtube";
 import axios from "axios";
+import { toast } from "react-toastify";
 const CourseDetails = () => {
-  
   const { id } = useParams();
   const [courseData, setCourseData] = useState(null);
   const [openSections, setOpenSections] = useState({});
@@ -275,9 +275,24 @@ const CourseDetails = () => {
                 <p>{calculateNoOfLectures(courseData)} lessons</p>
               </div>
             </div>
-            <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
-              {isAlreadyEnrolled ? "Already Enrolled" : " Enroll Now"}
+            <button
+              onClick={() => {
+                if (!userData) {
+                  toast.warn("Please log in to enroll in the course.");
+                  return;
+                }
+                enrollCourse();
+              }}
+              disabled={isAlreadyEnrolled}
+              className={`md:mt-6 mt-4 w-full py-3 rounded font-medium ${
+                isAlreadyEnrolled
+                  ? "bg-gray-400 text-white cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
+
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">
                 What's in the course?
