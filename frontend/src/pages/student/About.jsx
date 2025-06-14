@@ -1,9 +1,10 @@
 import React from "react";
 import { assets } from "../../assets/assets";
+import Footer from "../../components/student/Footer";
 
 const About = () => {
   return (
-    <div className="px-6 md:px-20">
+    <><div className="px-6 md:px-20">
       <div className="text-center text-2xl pt-10 text-gray-500">
         <p>
           ABOUT <span className="text-gray-700 font-medium">ME</span>
@@ -73,6 +74,9 @@ const About = () => {
         ))}
       </div>
     </div>
+    <Footer/>
+    </>
+    
   );
 };
 
