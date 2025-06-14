@@ -63,7 +63,7 @@
 //                   />
 //                   <span className="truncate">{item.student.name}</span>
 //                 </td>
-//                 <td className="px-4 py-3">{item.student.email}</td> 
+//                 <td className="px-4 py-3">{item.student.email}</td>
 //                 <td className="px-4 py-3 truncate">{item.courseTitle}</td>
 //                 <td className="px-4 py-3 hidden sm:table-cell">
 //                   {new Date(item.purchaseDate).toLocaleDateString()}
@@ -102,8 +102,13 @@ const StudentsEnrolled = () => {
         backendUrl + "/api/educator/enrolled-students",
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      // if (data.success) {
+      //   setEnrolledStudents(data.enrolledStudents.reverse());
       if (data.success) {
-        setEnrolledStudents(data.enrolledStudents.reverse());
+        const valid = data.enrolledStudents
+          .filter((item) => item.student !== null) // lọc lỗi
+          .reverse();
+        setEnrolledStudents(valid);
       } else {
         toast.error(data.message);
       }
@@ -118,7 +123,16 @@ const StudentsEnrolled = () => {
 
   const filtered = useMemo(() => {
     if (!enrolledStudents) return [];
-    return enrolledStudents.filter(item => {
+
+    return enrolledStudents.filter((item) => {
+      enrolledStudents.forEach((item, idx) => {
+        if (!item?.student) {
+          console.warn(
+            `❗️item at index ${idx} has null or undefined student`,
+            item
+          );
+        }
+      });
       const nameMatch = item.student.name
         .toLowerCase()
         .includes(searchName.toLowerCase().trim());
@@ -139,7 +153,7 @@ const StudentsEnrolled = () => {
       Name: item.student.name,
       Email: item.student.email,
       Course: item.courseTitle,
-      Date: new Date(item.purchaseDate).toLocaleDateString()
+      Date: new Date(item.purchaseDate).toLocaleDateString(),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -157,7 +171,7 @@ const StudentsEnrolled = () => {
           <input
             type="text"
             value={searchName}
-            onChange={e => setSearchName(e.target.value)}
+            onChange={(e) => setSearchName(e.target.value)}
             className="ml-2 border p-1 rounded"
             placeholder="Tìm theo tên..."
           />
@@ -167,7 +181,7 @@ const StudentsEnrolled = () => {
           <input
             type="date"
             value={startDate}
-            onChange={e => setStartDate(e.target.value)}
+            onChange={(e) => setStartDate(e.target.value)}
             className="ml-2 border p-1 rounded"
           />
         </div>
@@ -176,7 +190,7 @@ const StudentsEnrolled = () => {
           <input
             type="date"
             value={endDate}
-            onChange={e => setEndDate(e.target.value)}
+            onChange={(e) => setEndDate(e.target.value)}
             className="ml-2 border p-1 rounded"
           />
         </div>
