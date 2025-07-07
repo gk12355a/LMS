@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import  { useEffect, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import Home from "./pages/student/Home";
 import CourseList from "./pages/student/CourseList";
@@ -20,40 +20,8 @@ import About from "./pages/student/About";
 
 const App = () => {
   const isEducatorRoute = useMatch("/educator/*");
-  const [verified, setVerified] = useState(false);
-  const widgetRef = useRef(null);
 
-  useEffect(() => {
-    // Only show Turnstile on homepage (/) and not educator route
-    if (!isEducatorRoute && window.turnstile && !verified) {
-      window.turnstile.render(widgetRef.current, {
-        sitekey: "YOUR_SITE_KEY", // Thay bằng site key thực tế của bạn
-        callback: async function (token) {
-          try {
-            const res = await fetch("/api/user/verify-turnstile", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token }),
-            });
-            const data = await res.json();
-            if (data.success) {
-              setVerified(true);
-            } else {
-              toast.error("Xác thực bot thất bại!");
-            }
-          } catch (err) {
-            toast.error("Lỗi xác thực bot!");
-          }
-        },
-      });
-    }
-  }, [isEducatorRoute, verified]);
-
-  // Hiển thị widget xác thực ở trang chủ, ẩn nội dung cho đến khi xác thực xong
-  if (!isEducatorRoute && window.location.pathname === "/" && !verified) {
-    return <div ref={widgetRef} style={{ marginTop: 100, display: "flex", justifyContent: "center" }} />;
-  }
-
+  
   return (
     <div className="text-default min-h-screen  bg-gradient-to-b from-stone-200/70">
       <ToastContainer />

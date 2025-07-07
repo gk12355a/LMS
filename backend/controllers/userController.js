@@ -4,30 +4,6 @@ import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
-import axios from "axios";
-// Cloudflare Turnstile Verification API
-export const verifyTurnstile = async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ success: false, message: "Missing token" });
-    }
-    const response = await axios.post(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      new URLSearchParams({
-        secret: process.env.TURNSTILE_SECRET_KEY,
-        response: token,
-        remoteip: req.ip,
-      })
-    );
-    if (!response.data.success) {
-      return res.status(400).json({ success: false, message: "Bot verification failed" });
-    }
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 
 export const getUserData = async (req, res) => {
   try {
