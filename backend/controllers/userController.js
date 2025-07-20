@@ -1,38 +1,51 @@
-
 import Stripe from "stripe";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
+import { cacheMiddleware, invalidateUserCache } from '../middlewares/cache.js';
+import { cacheGet, cacheSet, cacheDel } from '../configs/redis.js';
+import { 
+  sendEmailNotification, 
+  sendCourseEnrollmentNotification,
+  sendPaymentProcessingNotification 
+} from '../configs/rabbitmq.js';
 
-export const getUserData = async (req, res) => {
-  try {
-    const userId = req.auth.userId;
-    const user = await User.findById(userId);
+// Cache user data for 1 hour
+export const getUserData = [
+  cacheMiddleware(3600),
+  async (req, res) => {
+    try {
+      const userId = req.auth.userId;
+      const user = await User.findById(userId);
 
-    if (!user) {
-      return res.json({ success: false, message: "User Not Found" });
+      if (!user) {
+        return res.json({ success: false, message: "User Not Found" });
+      }
+
+      res.json({ success: true, user });
+    } catch (error) {
+      res.json({ success: false, message: error.message });
     }
-
-    res.json({ success: true, user });
-  } catch (error) {
-    res.json({ success: false, message: error.message });
   }
-};
+];
 
-// Users Enrolled Courses With Lecture Links
-export const userEnrolledCourses = async (req, res) => {
-  try {
-    const userId = req.auth.userId;
-    const userData = await User.findById(userId).populate("enrolledCourses");
+// Cache enrolled courses for 30 minutes
+export const userEnrolledCourses = [
+  cacheMiddleware(1800),
+  async (req, res) => {
+    try {
+      const userId = req.auth.userId;
+      const userData = await User.findById(userId).populate("enrolledCourses");
 
-    res.json({ success: true, enrolledCourses: userData.enrolledCourses });
-  } catch (error) {
-    res.json({ success: false, message: error.message });
+      res.json({ success: true, enrolledCourses: userData.enrolledCourses });
+    } catch (error) {
+      res.json({ success: false, message: error.message });
+    }
   }
-};
+];
 
-// Purchase Course
+// Purchase Course with notifications
 export const purchaseCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
@@ -56,15 +69,24 @@ export const purchaseCourse = async (req, res) => {
 
     const newPurchase = await Purchase.create(purchaseData);
 
+    // Send payment processing notification to RabbitMQ
+    await sendPaymentProcessingNotification({
+      userId,
+      courseId: courseData._id,
+      amount: purchaseData.amount,
+      paymentId: newPurchase._id,
+      courseName: courseData.courseTitle
+    });
+
     // Stripe Gateway Initialize
     const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const currency = process.env.CURRENCY.toLowerCase();
+    const currency = process.env.CURRENCY || 'usd';
 
-    // Creating line items to for Stripe
+    // Creating line items for Stripe
     const line_items = [
       {
         price_data: {
-          currency,
+          currency: currency.toLowerCase(),
           product_data: {
             name: courseData.courseTitle,
           },
@@ -89,47 +111,108 @@ export const purchaseCourse = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
-// Update User Course Progress
+
+// Update User Course Progress with caching
 export const updateUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { courseId, lectureId } = req.body;
-    const progressData = await CourseProgress.findOne({ userId, courseId });
+    
+    // Check cache first
+    const cacheKey = `progress:${userId}:${courseId}`;
+    let progressData = await cacheGet(cacheKey);
+    
+    if (!progressData) {
+      progressData = await CourseProgress.findOne({ userId, courseId });
+    }
 
     if (progressData) {
-      if (progressData.lectureCompleted.includes(lectureId)) {
+      if (progressData.lectureCompleted && progressData.lectureCompleted.includes(lectureId)) {
         return res.json({
           success: true,
           message: "Lecture Already Completed",
         });
       }
+      
+      // Update progress
+      if (!progressData.lectureCompleted) {
+        progressData.lectureCompleted = [];
+      }
       progressData.lectureCompleted.push(lectureId);
-      await progressData.save();
+      
+      // Save to database
+      if (progressData._id) {
+        await CourseProgress.findByIdAndUpdate(progressData._id, progressData);
+      } else {
+        const newProgress = await CourseProgress.create({
+          userId,
+          courseId,
+          lectureCompleted: [lectureId],
+        });
+        progressData = newProgress;
+      }
     } else {
-      await CourseProgress.create({
+      progressData = await CourseProgress.create({
         userId,
         courseId,
         lectureCompleted: [lectureId],
       });
     }
+
+    // Update cache
+    await cacheSet(cacheKey, progressData, 1800); // Cache for 30 minutes
+
+    // Check if course is completed and send notification
+    const course = await Course.findById(courseId);
+    if (course) {
+      const totalLectures = course.courseContent.reduce((total, chapter) => 
+        total + chapter.chapterContent.length, 0
+      );
+      
+      if (progressData.lectureCompleted.length === totalLectures) {
+        // Course completed - send congratulations email
+        const user = await User.findById(userId);
+        await sendEmailNotification({
+          to: user.email,
+          template: 'courseComplete',
+          data: {
+            name: user.name,
+            courseName: course.courseTitle
+          }
+        });
+      }
+    }
+
     res.json({ success: true, message: "Progress Updated" });
   } catch (error) {
-    // Error handling would typically go here
     res.json({ success: false, message: error.message });
   }
 };
+
+// Get user course progress with caching
 export const getUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { courseId } = req.body;
-    const progressData = await CourseProgress.findOne({ userId, courseId });
+    
+    // Try cache first
+    const cacheKey = `progress:${userId}:${courseId}`;
+    let progressData = await cacheGet(cacheKey);
+    
+    if (!progressData) {
+      progressData = await CourseProgress.findOne({ userId, courseId });
+      if (progressData) {
+        await cacheSet(cacheKey, progressData, 1800); // Cache for 30 minutes
+      }
+    }
+    
     res.json({ success: true, progressData });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Add User Ratings to Course
+// Add User Rating with cache invalidation
 export const addUserRating = async (req, res) => {
   const userId = req.auth.userId;
   const { courseId, rating } = req.body;
@@ -143,8 +226,8 @@ export const addUserRating = async (req, res) => {
     if (!course) {
       return res.json({ success: false, message: "Course not found." });
     }
+    
     const user = await User.findById(userId);
-
     if (!user || !user.enrolledCourses.includes(courseId)) {
       return res.json({
         success: false,
@@ -163,6 +246,16 @@ export const addUserRating = async (req, res) => {
     }
 
     await course.save();
+
+    // Invalidate course cache since rating changed
+    await cacheDel(`cache:/api/course*${courseId}*`);
+    
+    // Send thank you email for rating
+    await sendEmailNotification({
+      to: user.email,
+      subject: 'Thank you for your rating!',
+      body: `Hi ${user.name}, thank you for rating "${course.courseTitle}" with ${rating} stars!`
+    });
 
     return res.json({ success: true, message: "Rating added" });
   } catch (error) {
