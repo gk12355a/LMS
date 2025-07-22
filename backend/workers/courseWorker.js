@@ -6,12 +6,21 @@ import { cacheDel } from '../configs/redis.js';
 import User from '../models/User.js';
 
 // Process course creation from RabbitMQ queue
-export const processCourseCreation = async (message) => {
+export const processCourseCreation = async (message, channel) => {
   try {
-    const { educatorId, courseData, imagePath, timestamp } = message;
-    const parsedData = JSON.parse(courseData);
+    const { educatorId, courseData, imagePath, timestamp, retryCount = 0 } = message;
     
+    // Giới hạn retry
+    if (retryCount >= 3) {
+      console.log(`❌ Max retries reached for course creation, sending to DLQ`);
+      throw new Error('Max retries reached');
+    }
+
     console.log(`🔄 Processing course creation for educator ${educatorId}`);
+    console.log('📤 Message data:', { educatorId, courseData, imagePath, timestamp, retryCount });
+
+    // Parse courseData
+    const parsedData = JSON.parse(courseData);
     
     // Create course in database
     const course = await Course.create({
@@ -20,9 +29,15 @@ export const processCourseCreation = async (message) => {
     });
     
     // Upload image to Cloudinary
-    const imageUpload = await cloudinary.uploader.upload(imagePath);
-    course.courseThumbnail = imageUpload.secure_url;
-    await course.save();
+    let imageUpload;
+    try {
+      imageUpload = await cloudinary.uploader.upload(imagePath);
+      course.courseThumbnail = imageUpload.secure_url;
+      await course.save();
+    } catch (cloudinaryError) {
+      console.error('❌ Cloudinary upload failed:', cloudinaryError.message);
+      throw cloudinaryError;
+    }
 
     // Invalidate related caches
     await Promise.all([
@@ -33,7 +48,7 @@ export const processCourseCreation = async (message) => {
 
     // Send email notification to educator
     await sendEmailNotification({
-      to: educatorId, 
+      to: educatorId,
       template: 'course_created',
       data: { 
         courseId: course._id,
@@ -45,7 +60,7 @@ export const processCourseCreation = async (message) => {
     console.log(`✅ Course created successfully: ${course._id}`);
     return { success: true, courseId: course._id };
   } catch (error) {
-    console.error('❌ Course creation failed:', error);
+    console.error('❌ Course creation failed:', error.message);
     throw error;
   }
 };

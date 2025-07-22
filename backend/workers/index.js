@@ -1,6 +1,11 @@
 import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '../.env' });
+import mongoose from 'mongoose';
 import { connectRabbitMQ, consumeFromQueue, QUEUES, closeRabbitMQ } from '../configs/rabbitmq.js';
 import { connectRedis } from '../configs/redis.js';
+import connectDB from '../configs/mongodb.js';
+import connectCloudinary from '../configs/cloudinary.js';
 import { 
   processCourseCreation,
   processCourseUpdate,
@@ -15,11 +20,19 @@ import {
 } from './courseWorker.js';
 
 // Initialize workers
-async function startWorkers() {
+async function startWorkers(attempt = 1, maxAttempts = 3) {
   try {
-    console.log('🚀 Starting RabbitMQ workers...');
+    console.log(`🚀 Starting RabbitMQ workers (Attempt ${attempt}/${maxAttempts})...`);
 
-    // Connect to Redis first
+    // Connect to MongoDB
+    await connectDB();
+    console.log('✅ MongoDB connected for workers');
+
+    // Configure Cloudinary
+    await connectCloudinary();
+    console.log('✅ Cloudinary configured for workers');
+
+    // Connect to Redis
     await connectRedis();
     console.log('✅ Redis connected for workers');
 
@@ -47,7 +60,6 @@ async function startWorkers() {
       { queue: QUEUES.EMAIL_NOTIFICATIONS, processor: processEmailNotification }
     ];
 
-    // Start consuming from all queues
     for (const { queue, processor } of consumers) {
       try {
         await consumeFromQueue(queue, processor);
@@ -59,22 +71,27 @@ async function startWorkers() {
 
     console.log('🎉 All workers started successfully!');
     console.log(`📊 Total consumers: ${consumers.length}`);
-    
   } catch (error) {
     console.error('❌ Failed to start workers:', error.message);
-    console.error('🔄 Retrying in 10 seconds...');
-    
-    // Retry after 10 seconds
-    setTimeout(startWorkers, 10000);
+    if (attempt < maxAttempts) {
+      console.error(`🔄 Retrying in 10 seconds (Attempt ${attempt + 1}/${maxAttempts})...`);
+      setTimeout(() => startWorkers(attempt + 1, maxAttempts), 10000);
+    } else {
+      console.error('❌ Max retry attempts reached. Exiting...');
+      process.exit(1);
+    }
   }
 }
 
 // Graceful shutdown
 async function gracefulShutdown() {
   console.log('🔄 Shutting down workers gracefully...');
-  
   try {
     await closeRabbitMQ();
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.close();
+      console.log('✅ MongoDB connection closed');
+    }
     console.log('✅ Workers shut down successfully');
     process.exit(0);
   } catch (error) {

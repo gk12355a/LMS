@@ -6,7 +6,6 @@ let channel = null;
 // RabbitMQ connection configuration
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://test:test@192.168.23.11:5672';
 
-// Queue names
 export const QUEUES = {
   COURSE_CREATION: 'course_creation',
   COURSE_UPDATE: 'course_update',
@@ -26,7 +25,6 @@ export const QUEUES = {
   EMAIL_NOTIFICATIONS: 'email_notifications'
 };
 
-// Connect to RabbitMQ
 export async function connectRabbitMQ() {
   try {
     console.log(`🔄 Connecting to RabbitMQ at: ${RABBITMQ_URL.replace(/\/\/.*@/, '//***:***@')}`);
@@ -34,26 +32,31 @@ export async function connectRabbitMQ() {
     connection = await amqp.connect(RABBITMQ_URL, {
       heartbeat: 60,
       connectionTimeout: 30000,
-      socketOptions: {
-        timeout: 30000
-      }
+      socketOptions: { timeout: 30000 }
     });
 
     channel = await connection.createChannel();
     
-    // Set prefetch count for better load balancing
-    await channel.prefetch(10);
+    // Set prefetch count to 1 for better resource management
+    await channel.prefetch(1);
 
-    // Declare all queues with durability
+    // Declare dead letter exchange and queue
+    await channel.assertExchange('dlx_exchange', 'direct', { durable: true });
+    
+    // Declare all queues with DLQ configuration
     for (const queueName of Object.values(QUEUES)) {
+      await channel.assertQueue(`${queueName}_dlq`, { durable: true });
+      await channel.bindQueue(`${queueName}_dlq`, 'dlx_exchange', `${queueName}_dlq`);
+      
       await channel.assertQueue(queueName, {
         durable: true,
         arguments: {
           'x-message-ttl': 3600000, // 1 hour TTL
-          'x-max-retries': 3
+          'x-dead-letter-exchange': 'dlx_exchange',
+          'x-dead-letter-routing-key': `${queueName}_dlq`
         }
       });
-      console.log(`✅ Queue declared: ${queueName}`);
+      console.log(`✅ Queue declared: ${queueName} with DLQ: ${queueName}_dlq`);
     }
 
     // Handle connection events
@@ -63,7 +66,6 @@ export async function connectRabbitMQ() {
 
     connection.on('close', () => {
       console.log('⚠️ RabbitMQ connection closed');
-      // Attempt to reconnect
       setTimeout(connectRabbitMQ, 5000);
     });
 
@@ -71,14 +73,11 @@ export async function connectRabbitMQ() {
     return { connection, channel };
   } catch (error) {
     console.error('❌ Failed to connect to RabbitMQ:', error.message);
-    
-    // Retry connection after 5 seconds
     setTimeout(connectRabbitMQ, 5000);
     throw error;
   }
 }
 
-// Send message to queue
 export async function sendToQueue(queueName, message, options = {}) {
   try {
     if (!channel) {
@@ -89,7 +88,7 @@ export async function sendToQueue(queueName, message, options = {}) {
     const messageBuffer = Buffer.from(JSON.stringify({
       ...message,
       timestamp: new Date().toISOString(),
-      retryCount: 0
+      retryCount: message.retryCount || 0
     }));
 
     const success = channel.sendToQueue(queueName, messageBuffer, {
@@ -110,7 +109,6 @@ export async function sendToQueue(queueName, message, options = {}) {
   }
 }
 
-// Consume messages from queue
 export async function consumeFromQueue(queueName, callback, options = {}) {
   try {
     if (!channel) {
@@ -123,27 +121,23 @@ export async function consumeFromQueue(queueName, callback, options = {}) {
           const content = JSON.parse(msg.content.toString());
           console.log(`📥 Processing message from ${queueName}:`, content);
           
-          await callback(content, msg);
+          await callback(content, channel);
           channel.ack(msg);
-          
           console.log(`✅ Message processed successfully from ${queueName}`);
         } catch (error) {
           console.error(`❌ Error processing message from ${queueName}:`, error.message);
           
-          // Check retry count
           const content = JSON.parse(msg.content.toString());
           const retryCount = content.retryCount || 0;
           
           if (retryCount < 3) {
-            // Retry logic
             content.retryCount = retryCount + 1;
             await sendToQueue(queueName, content);
-            channel.ack(msg);
+            channel.nack(msg, false, false);
             console.log(`🔄 Message requeued for retry (${retryCount + 1}/3)`);
           } else {
-            // Max retries reached, send to dead letter queue or log
             console.error(`💀 Max retries reached for message in ${queueName}:`, content);
-            channel.nack(msg, false, false);
+            channel.nack(msg, false, false); // Send to DLQ
           }
         }
       }
@@ -159,22 +153,18 @@ export async function consumeFromQueue(queueName, callback, options = {}) {
   }
 }
 
-// Send email notification
 export async function sendEmailNotification(emailData) {
   return await sendToQueue(QUEUES.EMAIL_NOTIFICATIONS, emailData);
 }
 
-// Get channel (for advanced usage)
 export function getChannel() {
   return channel;
 }
 
-// Get connection (for advanced usage)
 export function getConnection() {
   return connection;
 }
 
-// Close connection gracefully
 export async function closeRabbitMQ() {
   try {
     if (channel) {
@@ -191,14 +181,12 @@ export async function closeRabbitMQ() {
   }
 }
 
-// Health check
 export async function checkRabbitMQHealth() {
   try {
     if (!connection || !channel) {
       return { status: 'disconnected', message: 'No active connection' };
     }
 
-    // Try to declare a test queue
     await channel.checkQueue(QUEUES.EMAIL_NOTIFICATIONS);
     
     return { 
@@ -214,7 +202,6 @@ export async function checkRabbitMQHealth() {
   }
 }
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('🔄 Gracefully shutting down RabbitMQ...');
   await closeRabbitMQ();
