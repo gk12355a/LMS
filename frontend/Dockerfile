@@ -11,13 +11,8 @@ RUN npm run build
 # Stage runtime
 FROM nginx:alpine
 
-# Tạo thư mục /run/nginx và cấp quyền cho user nginx
-RUN mkdir -p /run/nginx && \
-    chown -R nginx:nginx /run/nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html
-
-# Chạy với user non-root
-USER nginx
+# Không cần chown/chmod vì dùng root
+# Xóa USER nginx để chạy với root (mặc định)
 
 # Sao chép file build từ stage build
 COPY --from=build /app/dist /usr/share/nginx/html
