@@ -3,21 +3,20 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Sao chép package.json và package-lock.json để tận dụng cache
 COPY package*.json ./
-# Cài dependencies, bỏ qua devDependencies
-RUN npm install -DskipTest=true
-# Sao chép mã nguồn (bao gồm public, src)
+RUN npm ci --no-audit --no-fund
 COPY . .
-# Build ứng dụng
 RUN npm run build
 
 # Stage runtime
 FROM nginx:alpine
 
-# Chạy Nginx với user non-root
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
+# Tạo thư mục /run/nginx và cấp quyền cho user nginx
+RUN mkdir -p /run/nginx && \
+    chown -R nginx:nginx /run/nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
+
+# Chạy với user non-root
 USER nginx
 
 # Sao chép file build từ stage build
