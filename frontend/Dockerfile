@@ -6,7 +6,7 @@ WORKDIR /app
 # Sao chép package.json và package-lock.json để tận dụng cache
 COPY package*.json ./
 # Cài dependencies, bỏ qua devDependencies
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm install -DskipTest=true
 # Sao chép mã nguồn (bao gồm public, src)
 COPY . .
 # Build ứng dụng
