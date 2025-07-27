@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: online-lms-backend-ingress
+  namespace: online-lms
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api-online-lms.devopsedu.vn
+      http:
+        paths:
+          - backend:
+              service:
+                name: online-lms-backend-service
+                port:
+                  number: 4000
+            path: /
+            pathType: Prefix
+

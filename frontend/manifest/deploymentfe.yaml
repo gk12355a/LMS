@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: online-clinic-frontend
+  name: online-clinic-frontend-deployment
+  namespace: online-clinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: online-clinic-frontend
+  template:
+    metadata:
+      labels:
+        app: online-clinic-frontend
+    spec:
+      containers:
+        - image: gk123a/online-clinic-frontend:v5
+          name: online-clinic-frontend
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      imagePullSecrets:
+        - name: auth-registry
+      hostsAliases:
+      - ip: "192.168.23.100"
+        hostnames:
+        - "gitlab.devopsedu.vn"
+
