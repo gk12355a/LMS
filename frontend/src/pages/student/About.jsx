@@ -33,6 +33,17 @@ const About = () => {
               cloud technologies to build scalable and secure infrastructures.
             </p>
           </div>
+          {/* My CV button */}
+          <div>
+            <a
+              href="https://www.topcv.vn/xem-cv/BQdaDQxWVV4LDgEHBAMGUAFbVwcBAQJaCFUDWw5f86"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block mt-6 px-6 py-3 border-2 border-white rounded-lg text-lg font-medium hover:bg-white hover:text-gray-900 transition"
+            >
+              My CV
+            </a>
+          </div>
 
           {/* Skills */}
           <div>
@@ -108,6 +119,8 @@ const About = () => {
               ))}
             </ul>
           </div>
+
+          
         </div>
       </section>
       <Footer />
