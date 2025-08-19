@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: online-lms-frontend
+  name: online-lms-frontend-deployment
+  namespace: online-lms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: online-lms-frontend
+  template:
+    metadata:
+      labels:
+        app: online-lms-frontend
+    spec:
+      containers:
+        - image: gk123a/online-lms-frontend:v1
+          name: online-lms-frontend
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: online-lms-frontend-service
+  namespace: online-lms
+spec:
+  ports:
+    - port: 5173
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: online-lms-frontend
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: online-lms-frontend-ingress
+  namespace: online-lms
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: online-lms.gk123a.vn
+      http:
+        paths:
+          - backend:
+              service:
+                name: online-lms-frontend-service
+                port:
+                  number: 5173
+            path: /
+            pathType: Prefix  

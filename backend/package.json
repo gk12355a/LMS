@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "server": "nodemon server.js",
+    "workers": "node workers/index.js",
+    "dev": "concurrently \"npm run server\" \"npm run workers\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
@@ -14,14 +16,18 @@
   "description": "",
   "dependencies": {
     "@clerk/express": "^1.6.0",
+    "amqplib": "^0.10.4",
     "cloudinary": "^2.6.1",
+    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "ioredis": "^5.3.2",
     "mongoose": "^8.15.1",
     "multer": "^2.0.1",
     "nodemon": "^3.1.10",
     "punycode": "^2.3.1",
+    "redis": "^4.6.13",
     "stripe": "^18.2.1",
     "svix": "^1.42.0"
   }

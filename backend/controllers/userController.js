@@ -1,38 +1,69 @@
-
 import Stripe from "stripe";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
+import { cacheGet, cacheSet, cacheDel } from "../configs/redis.js";
+import { sendToQueue } from "../configs/rabbitmq.js";
 
+const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Get User Data with Redis caching
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
+    const cacheKey = `user:${userId}:data`;
+    
+    // Try to get from cache first
+    const cachedData = await cacheGet(cacheKey);
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // If not in cache, fetch from database
     const user = await User.findById(userId);
 
     if (!user) {
       return res.json({ success: false, message: "User Not Found" });
     }
 
-    res.json({ success: true, user });
+    const response = { success: true, user };
+    
+    // Cache the result with 5-second TTL
+    await cacheSet(cacheKey, JSON.stringify(response), 5);
+
+    res.json(response);
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Users Enrolled Courses With Lecture Links
+// Users Enrolled Courses With Lecture Links with Redis caching
 export const userEnrolledCourses = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    const userData = await User.findById(userId).populate("enrolledCourses");
+    const cacheKey = `user:${userId}:enrolled-courses`;
+    
+    // Try to get from cache first
+    const cachedData = await cacheGet(cacheKey);
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
 
-    res.json({ success: true, enrolledCourses: userData.enrolledCourses });
+    // If not in cache, fetch from database
+    const userData = await User.findById(userId).populate("enrolledCourses");
+    const response = { success: true, enrolledCourses: userData.enrolledCourses };
+    
+    // Cache the result with 5-second TTL
+    await cacheSet(cacheKey, JSON.stringify(response), 5);
+
+    res.json(response);
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Purchase Course
+// Purchase Course with RabbitMQ async processing
 export const purchaseCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
@@ -56,15 +87,10 @@ export const purchaseCourse = async (req, res) => {
 
     const newPurchase = await Purchase.create(purchaseData);
 
-    // Stripe Gateway Initialize
-    const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const currency = process.env.CURRENCY.toLowerCase();
-
-    // Creating line items to for Stripe
     const line_items = [
       {
         price_data: {
-          currency,
+          currency: "usd",
           product_data: {
             name: courseData.courseTitle,
           },
@@ -84,12 +110,26 @@ export const purchaseCourse = async (req, res) => {
       },
     });
 
+    // Send to RabbitMQ for async processing
+    await sendToQueue('course_purchase_initiated', {
+      userId,
+      courseId,
+      purchaseId: newPurchase._id.toString(),
+      amount: newPurchase.amount,
+      sessionId: session.id,
+      timestamp: new Date().toISOString()
+    });
+
+    // Store amount in res.locals for potential RabbitMQ notification
+    res.locals.amount = newPurchase.amount;
+
     res.json({ success: true, session_url: session.url });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
-// Update User Course Progress
+
+// Update User Course Progress with RabbitMQ async processing
 export const updateUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -112,24 +152,52 @@ export const updateUserCourseProgress = async (req, res) => {
         lectureCompleted: [lectureId],
       });
     }
+
+    // Send to RabbitMQ for async processing (notifications, analytics, etc.)
+    await sendToQueue('course_progress_updated', {
+      userId,
+      courseId,
+      lectureId,
+      completedLectures: progressData ? progressData.lectureCompleted.length : 1,
+      timestamp: new Date().toISOString()
+    });
+
+    // Invalidate user's enrolled courses cache
+    await cacheDel(`user:${userId}:enrolled-courses`);
+
     res.json({ success: true, message: "Progress Updated" });
-  } catch (error) {
-    // Error handling would typically go here
-    res.json({ success: false, message: error.message });
-  }
-};
-export const getUserCourseProgress = async (req, res) => {
-  try {
-    const userId = req.auth.userId;
-    const { courseId } = req.body;
-    const progressData = await CourseProgress.findOne({ userId, courseId });
-    res.json({ success: true, progressData });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Add User Ratings to Course
+// Get User Course Progress with Redis caching
+export const getUserCourseProgress = async (req, res) => {
+  try {
+    const userId = req.auth.userId;
+    const { courseId } = req.body;
+    const cacheKey = `user:${userId}:progress:${courseId}`;
+    
+    // Try to get from cache first
+    const cachedData = await cacheGet(cacheKey);
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // If not in cache, fetch from database
+    const progressData = await CourseProgress.findOne({ userId, courseId });
+    const response = { success: true, progressData };
+    
+    // Cache the result with 5-second TTL
+    await cacheSet(cacheKey, JSON.stringify(response), 5);
+
+    res.json(response);
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Add User Ratings to Course with rate limiting and RabbitMQ async processing
 export const addUserRating = async (req, res) => {
   const userId = req.auth.userId;
   const { courseId, rating } = req.body;
@@ -139,6 +207,17 @@ export const addUserRating = async (req, res) => {
   }
 
   try {
+    // Rate limiting: Check if user has rated this course in the last 60 seconds
+    const rateLimitKey = `rate_limit:rating:${userId}:${courseId}`;
+    const lastRating = await cacheGet(rateLimitKey);
+    
+    if (lastRating) {
+      return res.json({ 
+        success: false, 
+        message: "Please wait before rating this course again" 
+      });
+    }
+
     const course = await Course.findById(courseId);
     if (!course) {
       return res.json({ success: false, message: "Course not found." });
@@ -156,6 +235,9 @@ export const addUserRating = async (req, res) => {
       (r) => r.userId === userId
     );
 
+    const isNewRating = existingRatingIndex === -1;
+    const oldRating = isNewRating ? null : course.courseRatings[existingRatingIndex].rating;
+
     if (existingRatingIndex > -1) {
       course.courseRatings[existingRatingIndex].rating = rating;
     } else {
@@ -163,6 +245,22 @@ export const addUserRating = async (req, res) => {
     }
 
     await course.save();
+
+    // Send to RabbitMQ for async processing (notifications, analytics, etc.)
+    await sendToQueue('course_rating_added', {
+      userId,
+      courseId,
+      rating,
+      oldRating,
+      isNewRating,
+      timestamp: new Date().toISOString()
+    });
+
+    // Set rate limit (60 seconds)
+    await cacheSet(rateLimitKey, "rated", 60);
+
+    // Invalidate related caches
+    await cacheDel(`course:${courseId}`);
 
     return res.json({ success: true, message: "Rating added" });
   } catch (error) {

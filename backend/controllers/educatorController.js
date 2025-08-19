@@ -2,7 +2,9 @@ import { clerkClient } from "@clerk/express";
 import Course from "../models/Course.js";
 import { v2 as cloudinary } from "cloudinary";
 import { Purchase } from "../models/Purchase.js";
-import User from "../models/User.js"
+import User from "../models/User.js";
+import { cacheGet, cacheSet, cacheDel } from "../configs/redis.js";
+import { sendToQueue } from "../configs/rabbitmq.js";
 
 // update role to educator
 export const updateRoleToEducator = async (req, res) => {
@@ -15,13 +17,20 @@ export const updateRoleToEducator = async (req, res) => {
       },
     });
 
+    // Send notification to queue
+    await sendToQueue('role_updated', {
+      userId,
+      role: 'educator',
+      timestamp: new Date().toISOString()
+    });
+
     res.json({ success: true, message: "You can publish a course now" });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-//Add new courses
+//Add new courses with RabbitMQ async processing
 export const addCourse = async (req, res) => {
   try {
     const { courseData } = req.body;
@@ -32,34 +41,66 @@ export const addCourse = async (req, res) => {
       return res.json({ success: false, message: "Thumbnail Not Attached" });
     }
 
-    const parsedCourseData = await JSON.parse(courseData);
+    const parsedCourseData = JSON.parse(courseData);
     parsedCourseData.educator = educatorId;
-    const newCourse = await Course.create(parsedCourseData);
-    const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-    newCourse.courseThumbnail = imageUpload.secure_url;
-    await newCourse.save();
 
-    res.json({ success: true, message: "Course Added" });
+    // Send to RabbitMQ for async processing
+    await sendToQueue('course_creation', {
+      educatorId,
+      courseData: JSON.stringify(parsedCourseData),
+      imagePath: imageFile.path,
+      timestamp: new Date().toISOString()
+    });
+
+    // Send immediate response
+    res.json({ 
+      success: true, 
+      message: "Course creation initiated. You will be notified when complete." 
+    });
+
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Get Educator Courses
+// Get Educator Courses with Redis caching
 export const getEducatorCourses = async (req, res) => {
   try {
     const educator = req.auth.userId;
+    const cacheKey = `educator:${educator}:courses`;
+    
+    // Try to get from cache first
+    const cachedData = await cacheGet(cacheKey);
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // If not in cache, fetch from database
     const courses = await Course.find({ educator });
-    res.json({ success: true, courses });
+    const response = { success: true, courses };
+    
+    // Cache the result with 5-second TTL
+    await cacheSet(cacheKey, JSON.stringify(response), 5);
+    
+    res.json(response);
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Get Educator Dashboard Data (Total Earning, Enrolled Students, No. of Courses)
+// Get Educator Dashboard Data with Redis caching
 export const educatorDashboardData = async (req, res) => {
   try {
     const educator = req.auth.userId;
+    const cacheKey = `educator:${educator}:dashboard`;
+    
+    // Try to get from cache first
+    const cachedData = await cacheGet(cacheKey);
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // If not in cache, fetch from database
     const courses = await Course.find({ educator });
     const totalCourses = courses.length;
 
@@ -75,7 +116,7 @@ export const educatorDashboardData = async (req, res) => {
       (sum, purchase) => sum + purchase.amount,
       0
     );
-    // Collect unique enrolled student IDs with their course titles
+
     const enrolledStudentsData = [];
 
     for (const course of courses) {
@@ -94,23 +135,37 @@ export const educatorDashboardData = async (req, res) => {
       });
     }
 
-    res.json({
+    const response = {
       success: true,
       dashboardData: {
         totalEarnings,
         enrolledStudentsData,
         totalCourses,
       },
-    });
+    };
+    
+    // Cache the result with 5-second TTL
+    await cacheSet(cacheKey, JSON.stringify(response), 5);
+
+    res.json(response);
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Get Enrolled Students Data with Purchase Data
+// Get Enrolled Students Data with Redis caching
 export const getEnrolledStudentsData = async (req, res) => {
   try {
     const educator = req.auth.userId;
+    const cacheKey = `educator:${educator}:enrolled-students`;
+    
+    // Try to get from cache first
+    const cachedData = await cacheGet(cacheKey);
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // If not in cache, fetch from database
     const courses = await Course.find({ educator });
     const courseIds = courses.map((course) => course._id);
 
@@ -118,20 +173,25 @@ export const getEnrolledStudentsData = async (req, res) => {
       courseId: { $in: courseIds },
       status: "completed",
     }).populate("userId", "name email imageUrl").populate("courseId", "courseTitle");
+    
     const enrolledStudents = purchases.map((purchase) => ({
       student: purchase.userId,
       courseTitle: purchase.courseId.courseTitle,
       purchaseDate: purchase.createdAt,
     }));
 
-    res.json({ success: true, enrolledStudents });
+    const response = { success: true, enrolledStudents };
+    
+    // Cache the result with 5-second TTL
+    await cacheSet(cacheKey, JSON.stringify(response), 5);
+
+    res.json(response);
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-
-// Update existing course
+// Update existing course with RabbitMQ async processing
 export const updateCourse = async (req, res) => {
   try {
     const { id } = req.params;
@@ -147,33 +207,26 @@ export const updateCourse = async (req, res) => {
       return res.json({ success: false, message: "Unauthorized to update this course" });
     }
 
-    // Update basic fields
-    if (courseTitle) course.courseTitle = courseTitle;
-    if (coursePrice) course.coursePrice = coursePrice;
-    if (discount) course.discount = discount;
-    if (courseDescription) course.courseDescription = courseDescription;
+    // Send to RabbitMQ for async processing
+    await sendToQueue('course_update', {
+      courseId: id,
+      educatorId,
+      updateData: {
+        courseTitle,
+        coursePrice,
+        discount,
+        courseDescription,
+        courseContent
+      },
+      imagePath: imageFile ? imageFile.path : null,
+      timestamp: new Date().toISOString()
+    });
 
-    // Update or add course content (chapters and lectures)
-    if (courseContent) {
-      course.courseContent = courseContent.map(chapter => ({
-        ...chapter,
-        chapterContent: chapter.chapterContent.map(lecture => ({
-          ...lecture,
-          lectureId: lecture.lectureId || `lec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          chapterId: chapter.chapterId || `chap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        }))
-      }));
-    }
+    res.json({ 
+      success: true, 
+      message: "Course update initiated. Changes will be applied shortly." 
+    });
 
-    // Update thumbnail if new image is provided
-    if (imageFile) {
-      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-      course.courseThumbnail = imageUpload.secure_url;
-    }
-
-    await course.save();
-
-    res.json({ success: true, message: "Course updated successfully", course });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
