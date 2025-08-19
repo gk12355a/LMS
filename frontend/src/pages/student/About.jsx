@@ -1,82 +1,117 @@
 import React from "react";
+import { CheckCircle, ChevronRight } from "lucide-react";
 import { assets } from "../../assets/assets";
 import Footer from "../../components/student/Footer";
 
 const About = () => {
   return (
-    <><div className="px-6 md:px-20">
-      <div className="text-center text-2xl pt-10 text-gray-500">
-        <p>
-          ABOUT <span className="text-gray-700 font-medium">ME</span>
-        </p>
-      </div>
+    <>
+      <section
+        id="about"
+        className="min-h-screen bg-gray-900 text-white flex flex-col md:flex-row items-center justify-center gap-10 px-6 md:px-20 py-16"
+      >
+        {/* Image */}
+        <img
+          src={assets.CMC}
+          alt="profile"
+          className="w-72 md:w-96 rounded-xl shadow-lg shadow-cyan-500/30 hover:scale-105 transition duration-300"
+        />
 
-      <div className="my-10 flex flex-col md:flex-row gap-12">
-        <div className="flex flex-col justify-center gap-6 md:w-2/4 text-sm text-gray-600">
-          <img
-            className="w-40 lg:w-60 block mx-auto"
-            alt="monalisa"
-            src={assets.monalisa}
-          />
-          <p>
-            Hello! I am <strong className="text-gray-800">Do Tri Kien</strong>,
-            a final-year student majoring in Information Technology at CMC
-            University.
-          </p>
-          <p>
-            I created this website with the purpose of sharing practical
-            knowledge that I have learned and applied during my studies and
-            self-research. I hope the articles and guides here will be helpful
-            for those interested in the field of system engineering.
-          </p>
-          <b className="text-gray-900">Content Goals</b>
-          <p>I focus on topics related to:</p>
-          <ul className="list-disc list-inside">
-            <li>Systems and infrastructure architecture</li>
-            <li>DevOps and CI/CD pipeline</li>
-            <li>Linux and Bash scripting</li>
-            <li>Golang programming language</li>
-            <li>Docker and Kubernetes</li>
-            <li>Web server configuration (Nginx)</li>
-            <li>Database design with High Availability (HA)</li>
-            <li>Computer networking and system administration</li>
-          </ul>
-          <p>
-            I look forward to receiving feedback, sharing, and discussions from
-            everyone to grow together 💡
-          </p>
-        </div>
-      </div>
-
-      <div className="text-xl my-4">
-        <p>
-          Highlighted{" "}
-          <span className="text-gray-700 font-semibold">Content</span>
-        </p>
-      </div>
-
-      <div className="flex flex-col md:flex-row mb-20">
-        {[
-          [
-            "Robust Systems",
-            "Solid foundational knowledge about operating systems and system architecture.",
-          ],
-          ["Automation", "CI/CD pipelines, scripted operational processes."],
-          ["Modern Deployment", "Docker, Kubernetes."],
-        ].map(([title, desc], i) => (
-          <div
-            key={i}
-            className="border px-6 md:px-12 py-8 flex flex-col gap-4 text-[15px] hover:bg-amber-500 hover:text-white transition-all duration-300 text-gray-600 cursor-pointer"
-          >
-            <b>{title}</b>
-            <p>{desc}</p>
+        {/* About content */}
+        <div className="flex flex-col gap-8 max-w-2xl">
+          <div>
+            <h1 className="text-5xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-amber-400 to-cyan-400 bg-clip-text text-transparent">
+                About Me
+              </span>
+            </h1>
+            <p className="opacity-80 leading-relaxed">
+              I am <span className="font-semibold">Do Tri Kien</span>, a final-year IT student at CMC University
+              with strong interests in cloud computing, automation, and system
+              architecture. My goal is to grow into a <b>DevOps Engineer</b>,
+              leveraging skills in CI/CD, scripting, containerization, and
+              cloud technologies to build scalable and secure infrastructures.
+            </p>
           </div>
-        ))}
-      </div>
-    </div>
-    <Footer/>
+
+          {/* Skills */}
+          <div>
+            <h2 className="text-3xl font-semibold mb-4">Skills</h2>
+            <div className="grid grid-cols-2 gap-6 text-gray-300">
+              <ul className="space-y-3">
+                {[
+                  "English (Good at Reading)",
+                  "Hypervisor: VMware Workstation, Proxmox",
+                  "Terminal: Bash Scripting, Vim",
+                  "IaC: Ansible",
+                  "Containerization: Docker, Kubernetes",
+                  "CI/CD: GitLab CI, Jenkins, Argo CD (GitOps)",
+                ].map((skill, i) => (
+                  <li key={i} className="flex items-center gap-2 hover:translate-x-2 transition">
+                    <ChevronRight className="w-5 h-5 text-cyan-400" /> {skill}
+                  </li>
+                ))}
+              </ul>
+              <ul className="space-y-3">
+                {[
+                  "Cloud: AWS",
+                  "Repository: DockerHub, Portus",
+                  "Web Server: Nginx, Tomcat",
+                  "Security: Snyk, Trivy, Climatecode, Arachni, AppArmor",
+                  "Monitoring: Prometheus, Grafana",
+                ].map((skill, i) => (
+                  <li key={i} className="flex items-center gap-2 hover:translate-x-2 transition">
+                    <ChevronRight className="w-5 h-5 text-cyan-400" /> {skill}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Certifications */}
+          <div>
+            <h2 className="text-3xl font-semibold mb-4">Certifications</h2>
+            <ul className="space-y-3 text-gray-300">
+              {[
+                [
+                  "Troubleshooting and Debugging Techniques",
+                  "https://www.coursera.org/account/accomplishments/certificate/BEWCADHHMSU8",
+                ],
+                [
+                  "Configuration Management and the Cloud",
+                  "https://www.coursera.org/account/accomplishments/certificate/2LMBLPJ6XXWN",
+                ],
+                [
+                  "Crash Course on Python",
+                  "https://www.coursera.org/account/accomplishments/certificate/RU6VS4D8GXYM",
+                ],
+                [
+                  "DevOps for Fresher",
+                  "https://devopsedu.vn/chung-chi-gia-su-2/?cert_hash=c5f4be43d2b10baf",
+                ],
+                [
+                  "DevOps for Business",
+                  "https://devopsedu.vn/chung-chi-gia-su-2/?cert_hash=75f5af1a416ebf79",
+                ],
+              ].map(([title, link], i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-amber-400" />
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:underline hover:text-cyan-400"
+                  >
+                    {title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+      <Footer />
     </>
-    
   );
 };
 
