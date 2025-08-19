@@ -45,7 +45,9 @@ import lesson_icon from './lesson_icon.svg'
 import cmc_icon from './cmc.png'
 import devops from './devops.svg'
 import monalisa from './monalisa.jpg'
+import CMC from './CMC.jpg'
 export const assets = {
+    CMC,
     monalisa,
     devops,
     logo,
